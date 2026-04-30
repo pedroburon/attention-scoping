@@ -1,0 +1,142 @@
+#!/usr/bin/env sh
+# attention — Attention Scoping CLI
+# Manages git sparse-checkout based on .attention.yml
+#
+# Usage:
+#   attention list           List available scopes
+#   attention use <scope>    Activate a scope
+#   attention status         Show active scope
+#   attention off            Restore full checkout
+
+set -e
+
+die() { printf "\n✗ %s\n\n" "$1" >&2; exit 1; }
+
+repo_root() {
+  git rev-parse --show-toplevel 2>/dev/null || die "Not inside a git repository."
+}
+
+config_file() { echo "$(repo_root)/.attention.yml"; }
+state_file()  { echo "$(repo_root)/.attention.state"; }
+
+check_config() {
+  [ -f "$(config_file)" ] || die ".attention.yml not found in repo root."
+}
+
+save_state() { echo "$1" > "$(state_file)"; }
+load_state()  { [ -f "$(state_file)" ] && cat "$(state_file)" || echo ""; }
+clear_state() { rm -f "$(state_file)"; }
+
+is_sparse_active() {
+  [ "$(git config core.sparseCheckout 2>/dev/null)" = "true" ]
+}
+
+get_scopes() {
+  awk '
+    /^  [^ #]/ && /[^:]*:$/ {
+      name = $0; gsub(/^ +| *:.*$/, "", name); print name
+    }
+  ' "$(config_file)"
+}
+
+get_description() {
+  awk -v target="$1" '
+    /^  [^ #]/ && /[^:]*:$/ {
+      name = $0; gsub(/^ +| *:.*$/, "", name)
+      in_scope = (name == target)
+    }
+    in_scope && /description:/ {
+      val = $0; gsub(/^.*description: */, "", val); gsub(/^"|"$/, "", val)
+      print val; exit
+    }
+  ' "$(config_file)"
+}
+
+get_paths() {
+  awk -v target="$1" '
+    /^  [^ #]/ && /[^:]*:$/ {
+      name = $0; gsub(/^ +| *:.*$/, "", name)
+      in_scope = (name == target); in_paths = 0
+    }
+    in_scope && /^ *paths:/       { in_paths = 1; next }
+    in_scope && in_paths && /^ *- / {
+      val = $0; gsub(/^ *- */, "", val); print val
+    }
+    in_scope && in_paths && /^ *[^ -]/ { in_paths = 0 }
+  ' "$(config_file)"
+}
+
+get_default() {
+  awk '/^default:/ { print $2; exit }' "$(config_file)"
+}
+
+scope_exists() {
+  get_scopes | grep -qx "$1"
+}
+
+cmd_list() {
+  check_config
+  active="$(load_state)"
+  default="$(get_default)"
+  printf "\n"
+  get_scopes | while read -r name; do
+    marker=""
+    [ "$name" = "$active" ]  && marker=" ← active"
+    [ -z "$marker" ] && [ "$name" = "$default" ] && marker=" (default)"
+    desc="$(get_description "$name")"
+    printf "  %s%s\n" "$name" "$marker"
+    [ -n "$desc" ] && printf "    %s\n" "$desc"
+    get_paths "$name" | while read -r p; do printf "    · %s\n" "$p"; done
+    printf "\n"
+  done
+}
+
+cmd_use() {
+  check_config
+  scope="$1"
+  [ -n "$scope" ] || die "Usage: attention use <scope>"
+  scope_exists "$scope" || {
+    available="$(get_scopes | tr '\n' ' ')"
+    die "Scope '$scope' not found. Available: $available"
+  }
+  paths="$(get_paths "$scope")"
+  [ -n "$paths" ] || die "Scope '$scope' has no paths defined."
+
+  is_sparse_active || git sparse-checkout init
+  git sparse-checkout set $paths
+  save_state "$scope"
+
+  desc="$(get_description "$scope")"
+  printf "\n✓ Scope '%s' active\n" "$scope"
+  [ -n "$desc" ] && printf "  %s\n" "$desc"
+  printf "  Paths: %s\n\n" "$(echo "$paths" | tr '\n' ' ')"
+}
+
+cmd_status() {
+  active="$(load_state)"
+  if ! is_sparse_active || [ -z "$active" ]; then
+    printf "\n  Full checkout active (no scope)\n\n"; return
+  fi
+  printf "\n  Active scope: %s\n" "$active"
+  if [ -f "$(config_file)" ] && scope_exists "$active"; then
+    desc="$(get_description "$active")"
+    [ -n "$desc" ] && printf "  %s\n" "$desc"
+    get_paths "$active" | while read -r p; do printf "  · %s\n" "$p"; done
+  fi
+  printf "\n"
+}
+
+cmd_off() {
+  git sparse-checkout disable
+  clear_state
+  printf "\n✓ Full checkout restored\n\n"
+}
+
+case "${1:-}" in
+  list)         cmd_list ;;
+  use)          shift; cmd_use "$1" ;;
+  status)       cmd_status ;;
+  off)          cmd_off ;;
+  -h|--help|"") sed -n '/^# Usage/,/^$/p' "$0" | sed 's/^# \{0,2\}//'; ;;
+  *)            die "Unknown command '$1'. Try: list, use <scope>, status, off" ;;
+esac

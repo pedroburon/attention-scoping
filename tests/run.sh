@@ -228,11 +228,15 @@ assert_contains "scope 'one' visible" "  one" "$out"
 assert_contains "scope 'two' visible" "  two" "$out"
 assert_contains "description on 'two' shown" "second" "$out"
 
+# -- hook tests --------------------------------------------------------------
+printf "\n=== session-start hook ===\n"
+sh "$SCRIPT_DIR/test-hook.sh"; HOOK_EXIT=$?
+
 # -- summary -----------------------------------------------------------------
 
 printf "\n"
 TOTAL=$((PASS + FAIL))
-if [ "$FAIL" -eq 0 ]; then
+if [ "$FAIL" -eq 0 ] && [ "${HOOK_EXIT:-0}" -eq 0 ]; then
   printf "%s %d/%d passed\n\n" "$(green ✓)" "$PASS" "$TOTAL"
   exit 0
 else

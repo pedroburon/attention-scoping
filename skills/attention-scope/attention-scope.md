@@ -14,10 +14,17 @@ This skill handles two scenarios:
 
 ## Setup
 
-When this skill is invoked, the `Skill` tool outputs the base directory of the skill file.
-Note that path — it is `$SKILL_DIR` throughout these instructions.
+When this skill is invoked, the `Skill` tool returns a message that includes a line:
 
-All CLI calls use `$SKILL_DIR/bin/attention`.
+```
+Base directory for this skill: /path/to/skills/attention-scope
+```
+
+That path is `$SKILL_DIR`. Mentally substitute it into every command below that uses `$SKILL_DIR`. All CLI calls use `$SKILL_DIR/bin/attention`.
+
+Example: if the base directory is `/Users/you/.claude/plugins/cache/attention-scope/1.0/skills/attention-scope`,
+then `$SKILL_DIR/bin/attention list` means:
+`/Users/you/.claude/plugins/cache/attention-scope/1.0/skills/attention-scope/bin/attention list`
 
 ---
 
@@ -42,7 +49,7 @@ Run when the repo has no `.attention.yml`.
 ### A1. Analyze directory structure
 
 ```sh
-find . -maxdepth 3 -type d | grep -v '^\./\.' | sort
+find . -maxdepth 3 -type d | grep -v '/\.' | sort
 ```
 
 Identify:
@@ -101,6 +108,8 @@ Indentation rules:
 - `description` and `paths` at 4-space indent
 - Path items at 6-space indent, prefixed with `- `
 
+Note: replace `<name>`, `<description>`, and `<path>` with actual values. Do not write angle brackets into the file.
+
 ### A4. Update `.gitignore`
 
 Read `.gitignore` (treat as empty if absent). If `.attention.state` is not present,
@@ -122,7 +131,7 @@ Every proposed scope must appear in the output. If a scope is missing:
 Ask:
 > "Install a session-start hook so Claude detects Attention Scoping automatically at the start of each session? (Recommended)"
 
-If yes: invoke the `update-config` skill. Instruct it to add a `SessionStart` hook
+If yes: invoke the `update-config` skill using the `Skill` tool. Instruct it to add a `SessionStart` hook
 with command: `bash "<SKILL_DIR>/hooks/session-start.sh"` where `<SKILL_DIR>` is the
 actual resolved path from setup.
 
@@ -144,8 +153,7 @@ $SKILL_DIR/bin/attention list
 Choose the scope whose paths cover the files needed for the current task.
 When in doubt, prefer the narrower scope.
 
-If the task spans multiple scopes: work one scope at a time — complete the first
-scope's changes, then switch.
+If the task spans multiple scopes: work one scope at a time — commit your changes in the first scope, then switch.
 
 If no scope covers the task: say so explicitly before proceeding.
 Never use full checkout silently.

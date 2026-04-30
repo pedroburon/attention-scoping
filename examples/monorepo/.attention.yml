@@ -1,0 +1,40 @@
+version: 1
+
+# Monorepo with multiple apps and shared packages.
+# Layout assumed:
+#   apps/<name>/
+#   packages/<name>/
+#   tools/
+
+scopes:
+  web:
+    description: "Customer-facing web app"
+    paths:
+      - apps/web
+      - packages/ui
+      - packages/types
+      - packages/api-client
+
+  admin:
+    description: "Internal admin dashboard"
+    paths:
+      - apps/admin
+      - packages/ui
+      - packages/types
+      - packages/api-client
+
+  api:
+    description: "Backend API service"
+    paths:
+      - apps/api
+      - packages/types
+      - packages/db
+      - packages/auth
+
+  shared:
+    description: "Shared packages only — for cross-cutting refactors"
+    paths:
+      - packages
+      - tools
+
+default: web

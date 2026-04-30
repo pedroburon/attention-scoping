@@ -1,0 +1,43 @@
+version: 1
+
+# Django backend + React frontend in a single repo.
+# Layout assumed:
+#   backend/
+#     <app>/        # Django apps: users, orders, payments, ...
+#     project/      # settings, urls, wsgi
+#   frontend/
+#     src/
+#       features/<name>/
+
+scopes:
+  backend:
+    description: "Django backend — all apps"
+    paths:
+      - backend
+      - requirements.txt
+      - manage.py
+
+  frontend:
+    description: "React frontend"
+    paths:
+      - frontend
+      - package.json
+      - package-lock.json
+
+  payments:
+    description: "Payments end-to-end (Django app + React feature)"
+    paths:
+      - backend/payments
+      - backend/project
+      - frontend/src/features/payments
+      - frontend/src/api
+
+  auth:
+    description: "Authentication end-to-end"
+    paths:
+      - backend/users
+      - backend/project
+      - frontend/src/features/auth
+      - frontend/src/api
+
+default: backend

@@ -1,0 +1,36 @@
+version: 1
+
+# Polyrepo-as-monorepo: multiple services in one tree, sharing protos and a lib.
+# Layout assumed:
+#   services/<name>/
+#   proto/
+#   lib/
+
+scopes:
+  gateway:
+    description: "Edge API gateway"
+    paths:
+      - services/gateway
+      - proto
+      - lib
+
+  orders:
+    description: "Orders service"
+    paths:
+      - services/orders
+      - proto
+      - lib
+
+  billing:
+    description: "Billing service"
+    paths:
+      - services/billing
+      - proto
+      - lib
+
+  proto:
+    description: "Proto definitions only — for cross-service contract changes"
+    paths:
+      - proto
+
+default: gateway

@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Build CLI asset
+        run: |
+          cp bin/attention attention
+          chmod +x attention
+
+      - name: Build skill bundle
+        run: |
+          tar -czf "attention-scope-skill-${{ steps.version.outputs.version }}.tar.gz" \
+            -C skills attention-scope
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            attention
+            attention-scope-skill-${{ steps.version.outputs.version }}.tar.gz
+          generate_release_notes: true
+          body: |
+            ## Assets
+
+            | File | Description |
+            |------|-------------|
+            | `attention` | CLI binary — copy to `/usr/local/bin/` or `~/.local/bin/` |
+            | `attention-scope-skill-${{ steps.version.outputs.version }}.tar.gz` | Claude Code skill bundle — extract to `~/.claude/skills/` |
+
+            ### Install CLI
+
+            ```sh
+            sudo install -m 755 attention /usr/local/bin/attention
+            ```
+
+            ### Install skill
+
+            ```sh
+            mkdir -p ~/.claude/skills
+            tar -xzf attention-scope-skill-${{ steps.version.outputs.version }}.tar.gz -C ~/.claude/skills/
+            ```
+
+            See the [README](https://github.com/pedroburon/attention-scoping#readme) for full documentation.
